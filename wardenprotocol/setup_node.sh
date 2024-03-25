@@ -4,7 +4,17 @@
 MONIKER=${MONIKER:-"YOUR_MONIKER_GOES_HERE"}
 RSYNC_BACKUP=${RSYNC_BACKUP:-""}
 RSYNC_LOCATION=${RSYNC_LOCATION:-""}
+RSYNC_RESTORE_BACKUP=${RSYNC_RESTORE_BACKUP:-""}
+RSYNC_RESTORE_LOCATION=${RSYNC_RESTORE_LOCATION:-""}
 RESTORE=${RESTORE:-""}
+
+# Retrieve RESTORE JSON from remote location if RSYNC_RESTORE_BACKUP and RSYNC_RESTORE_LOCATION are set
+if [ -n "$RSYNC_RESTORE_BACKUP" ] && [ -n "$RSYNC_RESTORE_LOCATION" ]; then
+  echo "Retrieving RESTORE JSON from remote location..."
+  rsync -avz --quiet $RSYNC_RESTORE_BACKUP:$RSYNC_RESTORE_LOCATION/validator_backup.json .
+  RESTORE=$(cat validator_backup.json)
+  echo "RESTORE JSON retrieved from remote location."
+fi
 
 # Initialize node
 wardend init $MONIKER
@@ -31,8 +41,10 @@ if [ -n "$RESTORE" ]; then
   echo "Restoring from backup..."
   VALIDATOR_ADDRESS=$(echo $RESTORE | jq -r '.validator_address')
   VALIDATOR_PASSWORD=$(echo $RESTORE | jq -r '.validator_password')
-  VALIDATOR_JSON=$(echo $RESTORE | jq -r '.validator_json')
   VALIDATOR_KEY_INFO=$(echo $RESTORE | jq -r '.validator_key_info')
+  
+  # Import validator key
+  echo $VALIDATOR_KEY_INFO | jq -r '.mnemonic' | wardend keys add validator --keyring-backend test --recover
 else
   # Create new wallet
   echo "Creating new wallet..."
@@ -61,33 +73,31 @@ else
   done
 
   echo "Wallet funded. Continuing..."
-
-  # Create new validator
-  echo "Creating new validator..."
-  VALIDATOR_OUTPUT=$(echo $VALIDATOR_PASSWORD | wardend tx staking create-validator \
-    --amount=1000000uward \
-    --pubkey=$(wardend tendermint show-validator) \
-    --moniker=$MONIKER \
-    --chain-id=alfama \
-    --commission-rate="0.10" \
-    --commission-max-rate="0.20" \
-    --commission-max-change-rate="0.01" \
-    --min-self-delegation="1000000" \
-    --gas="auto" \
-    --gas-prices="0.0025uward" \
-    --from=validator \
-    --keyring-backend=test \
-    --output json \
-    --yes)
-
-  # Extract validator JSON and key information
-  VALIDATOR_JSON=$(echo $VALIDATOR_OUTPUT | jq -r '.raw_log')
-  VALIDATOR_KEY_INFO=$(echo $VALIDATOR_PASSWORD | wardend keys show validator --keyring-backend test --output json)
 fi
 
+# Create new validator
+echo "Creating new validator..."
+echo $VALIDATOR_PASSWORD | wardend tx staking create-validator \
+  --amount=1000000uward \
+  --pubkey=$(wardend tendermint show-validator) \
+  --moniker=$MONIKER \
+  --chain-id=alfama \
+  --commission-rate="0.10" \
+  --commission-max-rate="0.20" \
+  --commission-max-change-rate="0.01" \
+  --min-self-delegation="1000000" \
+  --gas="auto" \
+  --gas-prices="0.0025uward" \
+  --from=validator \
+  --keyring-backend=test \
+  --yes
+
+# Extract validator key information
+VALIDATOR_KEY_INFO=$(echo $VALIDATOR_PASSWORD | wardend keys show validator --keyring-backend test --output json)
+
 # Generate backup JSON
-BACKUP_JSON=$(jq -n --arg va "$VALIDATOR_ADDRESS" --arg vp "$VALIDATOR_PASSWORD" --arg vj "$VALIDATOR_JSON" --arg vk "$VALIDATOR_KEY_INFO" \
-  '{validator_address: $va, validator_password: $vp, validator_json: $vj, validator_key_info: $vk}')
+BACKUP_JSON=$(jq -n --arg va "$VALIDATOR_ADDRESS" --arg vp "$VALIDATOR_PASSWORD" --arg vk "$VALIDATOR_KEY_INFO" \
+  '{validator_address: $va, validator_password: $vp, validator_key_info: $vk}')
 
 # Save backup JSON to a file
 echo $BACKUP_JSON > validator_backup.json
@@ -99,3 +109,7 @@ if [ -n "$RSYNC_BACKUP" ] && [ -n "$RSYNC_LOCATION" ]; then
   rsync -avz --quiet validator_backup.json $RSYNC_BACKUP:$RSYNC_LOCATION
   echo "Validator backup sent to rsync backup location."
 fi
+
+# Start the node
+echo "Starting the node..."
+wardend start

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Status Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.2/css/bootstrap.min.css">
+    <style>
+        body { padding: 20px; }
+        pre { background-color: #f8f9fa; padding: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Node Status Dashboard</h1>
+        <div id="nodeStatus" class="mb-3"></div>
+        <button id="createWalletButton" class="btn btn-primary mb-3">Create Wallet</button>
+        <button id="restoreWalletButton" class="btn btn-secondary mb-3" data-toggle="modal" data-target="#restoreWalletModal">Restore Wallet</button>
+        <button id="createValidatorButton" class="btn btn-primary mb-3" data-toggle="modal" data-target="#createValidatorModal" disabled>Create Validator</button>
+        <button id="restoreValidatorButton" class="btn btn-secondary mb-3" data-toggle="modal" data-target="#restoreValidatorModal" disabled>Restore Validator</button>
+        <button id="enableAPIButton" class="btn btn-warning mb-3">Enable Public API</button>
+        <button id="enableRPCButton" class="btn btn-warning mb-3">Enable Public RPC</button>
+
+        <div id="statusContainer">
+            <div id="lastUpdated"></div>
+            <div id="nodeInfo"></div>
+            <div id="netInfo"></div>
+            <div id="syncInfo"></div>
+            <div id="validatorInfo"></div>
+        </div>
+        <div id="errorContainer" class="mt-3"></div>
+
+
+        <div id="walletInfo" class="mt-4" style="display: none;">
+            <h4>Wallet Information</h4>
+            <ul>
+                <li><strong>Address:</strong> <span id="walletAddress"></span></li>
+                <li><strong>Public Key:</strong> <span id="walletPubkey"></span></li>
+                <li><strong>Sequence:</strong> <span id="walletSequence"></span></li>
+            </ul>
+            <button id="downloadBackupButton" class="btn btn-info">Download Backup</button>
+        </div>
+    </div>
+
+    <!-- Restore Validator Modal -->
+    <div class="modal fade" id="restoreValidatorModal" tabindex="-1" role="dialog" aria-labelledby="restoreValidatorModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="restoreValidatorModalLabel">Restore Validator</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="restoreValidatorForm">
+                        <div class="form-group">
+                            <label for="moniker">Moniker</label>
+                            <input type="text" class="form-control" id="moniker" name="moniker" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pubkey">Public Key</label>
+                            <input type="text" class="form-control" id="pubkey" name="pubkey" required>
+                        </div>
+                        <!-- Add more form fields as needed -->
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" form="restoreValidatorForm" class="btn btn-primary">Restore</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Create Validator Modal -->
+    <div class="modal fade" id="createValidatorModal" tabindex="-1" role="dialog" aria-labelledby="createValidatorModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createValidatorModalLabel">Create Validator</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="createValidatorForm">
+                        <div class="form-group">
+                            <label for="moniker">Moniker</label>
+                            <input type="text" class="form-control" id="moniker" name="moniker" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pubkey">Public Key</label>
+                            <input type="text" class="form-control" id="pubkey" name="pubkey" required>
+                        </div>
+                        <!-- Add more form fields as needed -->
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" form="createValidatorForm" class="btn btn-primary">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restore Wallet Modal -->
+    <div class="modal fade" id="restoreWalletModal" tabindex="-1" role="dialog" aria-labelledby="restoreWalletModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="restoreWalletModalLabel">Restore Wallet</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="restoreWalletForm">
+                        <div class="form-group">
+                            <label for="restoreMethod">Restore Method</label>
+                            <select class="form-control" id="restoreMethod" name="restore_method">
+                                <option value="backup">Backup File</option>
+                                <option value="mnemonic">Mnemonic Phrase</option>
+                                <option value="private_key">Private Key</option>
+                            </select>
+                        </div>
+                        <div id="backupFileGroup" class="form-group">
+                            <label for="backupFile">Backup File</label>
+                            <input type="file" class="form-control-file" id="backupFile" name="backup_file">
+                        </div>
+                        <div id="mnemonicGroup" class="form-group" style="display: none;">
+                            <label for="mnemonic">Mnemonic Phrase</label>
+                            <input type="text" class="form-control" id="mnemonic" name="mnemonic">
+                        </div>
+                        <div id="privateKeyGroup" class="form-group" style="display: none;">
+                            <label for="privateKey">Private Key</label>
+                            <input type="text" class="form-control" id="privateKey" name="private_key">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" form="restoreWalletForm" class="btn btn-primary">Restore</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.1/umd/popper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.2/js/bootstrap.min.js"></script>
+    <script>
+        const eventSource = new EventSource('/node_status');
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                displayError(data.error);
+            } else {
+                updateNodeStatus(data);
+                document.getElementById('lastUpdated').innerHTML = `<p><strong>Last Updated:</strong> ${data.timestamp}</p>`;
+            }
+        };
+
+        eventSource.onerror = function(event) {
+            console.error('EventSource failed:', event);
+            displayError('Lost connection to the server. Trying to reconnect...');
+        };
+
+        function enableAPI() {
+            fetch('/enable_api', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error enabling API.');
+                });
+        }
+
+        function enableRPC() {
+            fetch('/enable_rpc', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error enabling RPC.');
+                });
+        }
+
+        function restoreValidator(event) {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById('restoreValidatorForm'));
+
+            fetch('/restore_validator', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        alert(data.message);
+                        $('#restoreValidatorModal').modal('hide');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating validator.');
+                });
+        }
+
+
+        function createValidator(event) {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById('createValidatorForm'));
+
+            fetch('/create_validator', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        alert(data.message);
+                        $('#createValidatorModal').modal('hide');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating validator.');
+                });
+        }
+
+        function updateNodeStatus(data) {
+            document.getElementById('errorContainer').innerHTML = '';
+            document.getElementById('statusContainer').style.display = 'block';
+
+            let nodeStatus = 'Online';
+            if (data.validator_info.voting_power > 0) {
+                nodeStatus = 'Validator';
+                document.getElementById('createValidatorButton').disabled = true;
+                document.getElementById('restoreValidatorButton').disabled = true;
+
+            } else {
+                document.getElementById('createValidatorButton').disabled = false;
+                document.getElementById('restoreValidatorButton').disabled = false;
+
+            }
+
+            document.getElementById('nodeStatus').innerHTML = `<h3>Node Status: ${nodeStatus}</h3>`;
+
+            document.getElementById('nodeInfo').innerHTML = `
+                <h4>Node Information</h4>
+                <ul>
+                    <li><strong>Node ID:</strong> ${data.node_info.id}</li>
+                    <li><strong>Network:</strong> ${data.node_info.network}</li>
+                    <li><strong>Version:</strong> ${data.node_info.version}</li>
+                    <li><strong>Moniker:</strong> ${data.node_info.moniker}</li>
+                </ul>
+            `;
+
+            document.getElementById('netInfo').innerHTML = `
+                <h4>Network Information</h4>
+                <ul>
+                    <li><strong>Listening:</strong> ${data.net_info.listening}</li>
+                    <li><strong>Listeners:</strong> ${data.net_info.listeners.join(', ')}</li>
+                    <li><strong>Number of Peers:</strong> ${data.net_info.n_peers}</li>
+                </ul>
+            `;
+
+            document.getElementById('syncInfo').innerHTML = `
+                <h4>Sync Information</h4>
+                <ul>
+                    <li><strong>Catching Up:</strong> ${data.sync_info.catching_up}</li>
+                    <li><strong>Latest Block Height:</strong> ${data.sync_info.latest_block_height}</li>
+                </ul>
+            `;
+
+            document.getElementById('validatorInfo').innerHTML = `
+                <h4>Validator Information</h4>
+                <ul>
+                    <li><strong>Address:</strong> ${data.validator_info.address}</li>
+                    <li><strong>Voting Power:</strong> ${data.validator_info.voting_power}</li>
+                </ul>
+            `;
+        }
+
+        function displayError(error) {
+            document.getElementById('errorContainer').innerHTML = `<p class="text-danger">${error}</p>`;
+            document.getElementById('statusContainer').style.display = 'none';
+        }
+
+        function createWallet() {
+            fetch('/create_wallet', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        document.getElementById('walletAddress').textContent = data.address;
+                        document.getElementById('walletPubkey').textContent = data.pubkey;
+                        document.getElementById('walletSequence').textContent = data.sequence;
+                        document.getElementById('walletInfo').style.display = 'block';
+                        document.getElementById('downloadBackupButton').setAttribute('data-backup-file', data.backup_file);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating wallet.');
+                });
+        }
+
+        function downloadBackup(event) {
+            const backupFile = event.target.getAttribute('data-backup-file');
+            window.location.href = `/download_backup/${backupFile}`;
+        }
+
+        function restoreWallet(event) {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById('restoreWalletForm'));
+
+            fetch('/restore_wallet', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        document.getElementById('walletAddress').textContent = data.address;
+                        document.getElementById('walletPubkey').textContent = data.pubkey;
+                        document.getElementById('walletSequence').textContent = data.sequence;
+                        document.getElementById('walletInfo').style.display = 'block';
+                        $('#restoreWalletModal').modal('hide');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error restoring wallet.');
+                });
+        }
+
+        function toggleRestoreMethod() {
+            const restoreMethod = document.getElementById('restoreMethod').value;
+            document.getElementById('backupFileGroup').style.display = restoreMethod === 'backup' ? 'block' : 'none';
+            document.getElementById('mnemonicGroup').style.display = restoreMethod === 'mnemonic' ? 'block' : 'none';
+            document.getElementById('privateKeyGroup').style.display = restoreMethod === 'private_key' ? 'block' : 'none';
+        }
+
+        document.getElementById('enableAPIButton').addEventListener('click', enableAPI);
+        document.getElementById('enableRPCButton').addEventListener('click', enableRPC);
+        document.getElementById('restoreValidatorForm').addEventListener('submit', restoreValidator);
+        document.getElementById('createValidatorForm').addEventListener('submit', createValidator);
+        document.getElementById('createWalletButton').addEventListener('click', createWallet);
+        document.getElementById('downloadBackupButton').addEventListener('click', downloadBackup);
+        document.getElementById('restoreWalletForm').addEventListener('submit', restoreWallet);
+        document.getElementById('restoreMethod').addEventListener('change', toggleRestoreMethod);
+    </script>
+</body>
+</html>

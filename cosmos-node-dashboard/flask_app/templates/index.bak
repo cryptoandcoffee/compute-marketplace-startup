@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Comparison Dashboard</title>
+    <script>
+        async function fetchBlockHeight() {
+            const response = await fetch('/block_height');
+            const data = await response.json();
+            document.getElementById('localHeight').textContent = data.local_height;
+            document.getElementById('publicHeight').textContent = data.public_height;
+            document.getElementById('blocksBehind').textContent = data.behind;
+            setTimeout(fetchBlockHeight, 5000); // Refresh every 5 seconds
+        }
+
+        window.onload = fetchBlockHeight;
+    </script>
+</head>
+<body>
+    <h1>Node Comparison Dashboard</h1>
+    <p><strong>Local Node Block Height:</strong> <span id="localHeight">Loading...</span></p>
+    <p><strong>Public Node Block Height:</strong> <span id="publicHeight">Loading...</span></p>
+    <p><strong>Blocks Behind:</strong> <span id="blocksBehind">Calculating...</span></p>
+</body>
+</html>

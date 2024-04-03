@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Status Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .status-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Node1 Status Dashboard</h1>
+    <button id="refreshButton">Refresh Status</button>
+    <div class="status-container">
+        <p><strong>Online:</strong> <span id="onlineStatus">Loading...</span></p>
+        <p><strong>Syncing:</strong> <span id="syncingStatus">Loading...</span></p>
+        <p><strong>Remaining Blocks:</strong> <span id="remainingBlocks">Loading...</span></p>
+        <p><strong>Estimated Time Remaining:</strong> <span id="estimatedTime">Loading...</span></p>
+    </div>
+
+    <script>
+        function fetchNodeStatus() {
+            fetch('/node_status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('onlineStatus').textContent = data.online ? 'Yes' : 'No';
+                    document.getElementById('syncingStatus').textContent = data.syncing ? 'Yes' : 'No';
+                    document.getElementById('remainingBlocks').textContent = data.remaining_blocks;
+                    document.getElementById('estimatedTime').textContent = data.estimated_time_remaining + ' seconds';
+                })
+                .catch(error => {
+                    console.error('Error fetching node status:', error);
+                    alert('Failed to fetch node status. Please try again.');
+                });
+        }
+
+        document.getElementById('refreshButton').addEventListener('click', fetchNodeStatus);
+
+        // Fetch the initial status when the page loads
+        window.onload = fetchNodeStatus;
+    </script>
+</body>
+</html>

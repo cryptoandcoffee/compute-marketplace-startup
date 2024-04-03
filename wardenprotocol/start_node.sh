@@ -4,4 +4,4 @@
 /usr/local/bin/setup_node.sh
 
 # Start the node
-wardend start
+#wardend start

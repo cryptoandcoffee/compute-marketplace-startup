@@ -9,7 +9,7 @@ WORKDIR /root
 
 # Install dependencies
 RUN apt-get update && \
-    apt-get install -y curl git jq lz4 build-essential && \
+    apt-get install -y curl git jq lz4 build-essential nginx netcat && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Go
@@ -33,6 +33,7 @@ RUN chmod +x /usr/local/bin/setup_node.sh /usr/local/bin/start_node.sh
 
 # Expose ports
 EXPOSE 26656 26657 1317 9090
+COPY nginx-default.conf /
 
 # Set the entrypoint to the start script
 ENTRYPOINT ["/usr/local/bin/start_node.sh"]
